@@ -73,6 +73,8 @@ when provisioning is complete, you should be provided the relevant URLs to pop i
 
 from there, you should see a webpage which tests a couple of things and reports back to you.
 
+if you don't have a browser, you could use `curl https://localhost:$port -k`
+
 **note:** the certificate installed on each host will flag up as untrusted on your system due to it being self-signed.
 
 i really wanted to try out [Let's Encrypt!](https://www.letsencrypt.org), but it seems that it's a closed beta at the moment :(
