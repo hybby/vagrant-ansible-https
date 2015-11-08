@@ -1,0 +1,2 @@
+webserver01 ansible_ssh_host=192.168.10.11
+webserver02 ansible_ssh_host=192.168.10.12

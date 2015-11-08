@@ -1,0 +1,6 @@
+---
+- name: install epel repofiles from fedoraproject.org
+  yum: name=https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm state=present
+
+- name: install common packages required for our other role(s) ({{ common_packages }})
+  yum: name={{ common_packages }} state="present"

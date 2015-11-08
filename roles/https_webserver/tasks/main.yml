@@ -1,0 +1,93 @@
+---
+# ---------
+# packages 
+# ---------
+
+# for efficiency, we should install all packages at once.  hence the variable
+- name: install webserver packages ({{ webserver_packages }})
+  yum: name="{{ webserver_packages }}" state="present"
+
+
+# ---------------
+# iptables config
+# ---------------
+- name: allow connections to the server on our https port
+  lineinfile: > 
+    dest="/etc/sysconfig/iptables" 
+    state="present" 
+    insertafter="^\:INPUT ACCEPT \[0\:0\]$" 
+    line="-A INPUT -m state --state NEW -p tcp --dport {{ https_port }} -j ACCEPT"
+
+
+# ----------
+# ssl config
+# ----------
+
+# sslroot is where our certs, csrs and public keys will go.  let's make a secure dirstructure
+- name: set up our ssl directory in {{ sslroot }}
+  file: path="{{ sslroot }}" state="directory" mode="0700" owner="root" group="root"
+
+- name: set up our csr directory in {{ sslroot }}/csrs
+  file: path="{{ sslroot }}/csrs" state="directory" mode="0700" owner="root" group="root"
+
+- name: set up our private keys directory in {{ sslroot }}/private
+  file: path="{{ sslroot }}/private" state="directory" mode="0700" owner="root" group="root"
+
+- name: set up our cert directory in {{ sslroot }}/certs
+  file: path="{{ sslroot }}/certs" state="directory" mode="0700" owner="root" group="root"
+
+- name: generate csr and place in {{ sslroot }}/csrs
+  command: >
+    openssl req -nodes -newkey rsa:2048 
+    -keyout {{ sslroot }}/private/{{ansible_hostname}}.key 
+    -out {{ sslroot }}/csrs/{{ansible_hostname}}.csr 
+    -subj "/C={{ ssl_country }}/ST={{ ssl_state }}/L={{ ssl_locality }}/O={{ ssl_org }}/CN={{ansible_hostname}}.{{ webserver_domain }}"
+  args:
+    creates: "{{ sslroot }}/private/{{ansible_hostname}}.key"
+    creates: "{{ sslroot }}/csrs/{{ansible_hostname}}.csr"
+
+- name: self-sign our csr and pop the cert in {{ sslroot }}/certs
+  command: > 
+    openssl x509 -req -days {{ ssldays }} 
+    -in {{ sslroot }}/csrs/{{ansible_hostname}}.csr 
+    -signkey {{ sslroot }}/private/{{ansible_hostname}}.key 
+    -out {{ sslroot }}/certs/{{ansible_hostname}}.pem
+  args:
+    creates: "{{ sslroot }}/certs/{{ansible_hostname}}.pem"
+
+
+# -------------
+# virtualhosts
+# -------------
+
+# get rid of our default ssl config to prevent virtualhost clashes
+- name: remove the default ssl.conf file
+  file: name="/etc/httpd/conf.d/ssl.conf" state="absent"
+
+- name: stop httpd listening on port 80
+  replace: dest=/etc/httpd/conf/httpd.conf regexp='^Listen 80$' replace='#Listen 80' backup=yes
+
+- name: place our https virtualhost (serves files from {{ webroot }})
+  template: src="secure.conf" dest=/etc/httpd/conf.d/secure.conf owner="apache" group="apache" mode="0644"
+
+
+# -------
+# content
+# -------
+
+# webroot is where our public html files will go
+- name: set up our http root directory in {{ webroot }}
+  file: path="{{ webroot }}" state="directory" mode="0755" owner="apache" group="apache"
+
+- name: copy our index.php page into place
+  template: src="index.php" dest="{{ webroot }}" owner="apache" group="apache" mode="0644"
+
+
+# --------
+# services
+# --------
+- name: ensure apache is started and its config has been refreshed
+  service: name=httpd state="restarted" enabled="yes"
+
+- name: restart iptables
+  service: name="iptables" state="restarted" enabled="yes"

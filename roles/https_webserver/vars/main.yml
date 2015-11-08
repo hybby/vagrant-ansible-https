@@ -1,0 +1,13 @@
+---
+# packages to deploy as part of a webserver install
+webserver_packages: "httpd,php,mod_ssl,openssl"
+webmaster: "iamdrew@gmail.com"
+webserver_domain: "hybby.com"
+webroot: "/srv/webroot"
+sslroot: "/etc/pki/tls/httpd"
+ssldays: 365
+https_port: "443"
+ssl_country: "GB"
+ssl_state: "Glasgow"
+ssl_locality: "Glasgow"
+ssl_org: "Hybby"
